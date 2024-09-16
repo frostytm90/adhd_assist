@@ -13,23 +13,36 @@ void main() async {
   runApp(TodoApp());
 }
 
-class TodoApp extends StatelessWidget {
-  const TodoApp({super.key});
+class TodoApp extends StatefulWidget {
+  @override
+  _TodoAppState createState() => _TodoAppState();
+}
+
+class _TodoAppState extends State<TodoApp> {
+  bool _isDarkMode = false; // Initially set to light mode
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'ADHD Assist - To-Do List',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
+      theme: _isDarkMode ? ThemeData.dark() : ThemeData.light(), // Toggle between dark and light mode
+      home: TodoListScreen(
+        onThemeChange: _toggleTheme, // Pass theme change handler to the main screen
       ),
-      home: TodoListScreen(),
     );
+  }
+
+  void _toggleTheme() {
+    setState(() {
+      _isDarkMode = !_isDarkMode;
+    });
   }
 }
 
 class TodoListScreen extends StatefulWidget {
-  const TodoListScreen({super.key});
+  final Function onThemeChange;
+
+  TodoListScreen({required this.onThemeChange});
 
   @override
   _TodoListScreenState createState() => _TodoListScreenState();
@@ -364,6 +377,12 @@ class _TodoListScreenState extends State<TodoListScreen> {
             icon: const Icon(Icons.notifications), // No need for const here
             onPressed: () async {
               await NotificationService().showImmediateNotification();
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.brightness_6), // Icon for toggling light/dark mode
+            onPressed: () {
+              widget.onThemeChange();  // Toggle dark/light mode
             },
           ),
         ],
