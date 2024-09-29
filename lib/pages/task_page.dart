@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import '../models/task.dart';  // Make sure your Task model is imported
+import 'package:intl/intl.dart'; // For date formatting
+import '../models/task.dart'; // Correct path to the Task model
+import 'task_details_page.dart'; // Correct path to TaskDetailsPage
 
 class TaskPage extends StatefulWidget {
   @override
@@ -45,58 +46,81 @@ class _TaskPageState extends State<TaskPage> {
   }
 
   // Method to build the task list view for each category
-Widget _buildTaskListView(TaskCategory category) {
-  List<Task> filteredTasks = _filterTasks(category);
+  Widget _buildTaskListView(TaskCategory category) {
+    List<Task> filteredTasks = _filterTasks(category);
 
-  if (filteredTasks.isEmpty) {
-    return Center(child: Text('No tasks in this category'));
+    if (filteredTasks.isEmpty) {
+      return Center(child: Text('No tasks in this category'));
+    }
+
+    return ListView.builder(
+      itemCount: filteredTasks.length,
+      itemBuilder: (context, index) {
+        final task = filteredTasks[index];
+        return GestureDetector(
+          onTap: () => _navigateToTaskDetailsPage(task),  // Navigate to task details on tap
+          child: Container(  // Use Container to wrap the entire row and make it tappable
+            padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),  // Padding around the entire task row
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,  // Aligns text and checkbox
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,  // Space between text and checkbox
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,  // Align text to the left
+                    children: [
+                      Text(
+                        task.title,
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      SizedBox(height: 4.0),  // Space between title and subtitle
+                      Text(
+                        'Priority: ${task.priority.toString().split('.').last}, '
+                        'Due: ${task.dueDate != null ? DateFormat.yMMMd().format(task.dueDate!) : 'No due date'}',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 6.0),  // Adds some space at the top to align the checkbox lower
+                  child: Checkbox(
+                    value: task.isCompleted,
+                    onChanged: (bool? value) {
+                      setState(() {
+                        task.isCompleted = value ?? false;
+                      });
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
-  return ListView.builder(
-    itemCount: filteredTasks.length,
-    itemBuilder: (context, index) {
-      final task = filteredTasks[index];
-      return Padding(
-        padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),  // Adjust padding around the task
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,  // Aligns text and checkbox
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,  // Space between text and checkbox
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,  // Align text to the left
-                children: [
-                  Text(
-                    task.title,
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 4.0),  // Space between title and subtitle
-                  Text(
-                    'Priority: ${task.priority.toString().split('.').last}, '
-                    'Due: ${task.dueDate != null ? DateFormat.yMMMd().format(task.dueDate!) : 'No due date'}',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(top: 6.0),  // Adds some space at the top to align the checkbox lower
-              child: Checkbox(
-                value: task.isCompleted,
-                onChanged: (bool? value) {
-                  setState(() {
-                    task.isCompleted = value ?? false;
-                  });
-                },
-              ),
-            ),
-          ],
+  // Add the navigation function to navigate to task details
+  void _navigateToTaskDetailsPage(Task task) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TaskDetailsPage(
+          task: task,
+          onDelete: () {
+            setState(() {
+              _tasks.remove(task);  // Handle task deletion
+            });
+            Navigator.of(context).pop();  // Close details page after deletion
+          },
+          onEdit: () {
+            // Handle task editing
+          },
         ),
-      );
-    },
-  );
-}
-
+      ),
+    );
+  }
 
   // Method to filter tasks based on their category
   List<Task> _filterTasks(TaskCategory category) {
