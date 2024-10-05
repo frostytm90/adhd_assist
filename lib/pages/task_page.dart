@@ -76,81 +76,111 @@ class _TaskPageState extends State<TaskPage> {
   }
 
   // Method to build the task list view for each category
-  Widget _buildTaskListView(TaskCategory category) {
-    List<Task> filteredTasks = _filterTasks(category);
+// Updated Method to Build the Task List View
+Widget _buildTaskListView(TaskCategory category) {
+  List<Task> filteredTasks = _filterTasks(category);
 
-    if (filteredTasks.isEmpty) {
-      return const Center(child: Text('No tasks in this category'));
-    }
-
-    return ListView.builder(
-      itemCount: filteredTasks.length,
-      itemBuilder: (context, index) {
-        final task = filteredTasks[index];
-        return GestureDetector(
-          onTap: () => _navigateToTaskDetailsPage(task), // Navigate to task details on tap
-          child: Container( // Use Container to wrap the entire row and make it tappable
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0), // Padding around the entire task row
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start, // Aligns text and checkbox
-              mainAxisAlignment: MainAxisAlignment.spaceBetween, // Space between text and checkbox
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start, // Align text to the left
-                    children: [
-                      Text(
-                        task.title,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 4.0), // Space between title and subtitle
-                      Text(
-                        'Priority: ${task.priority.toString().split('.').last}, '
-                        'Due: ${task.dueDate != null ? DateFormat.yMMMd().format(task.dueDate!) : 'No due date'}',
-                        style: const TextStyle(color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(top: 6.0), // Adds some space at the top to align the checkbox lower
-                  child: Checkbox(
-                    value: task.isCompleted,
-                    onChanged: (bool? value) {
-                      setState(() {
-                        task.isCompleted = value ?? false;
-                      });
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
+  if (filteredTasks.isEmpty) {
+    return const Center(child: Text('No tasks in this category'));
   }
+
+  return ListView.builder(
+    itemCount: filteredTasks.length,
+    itemBuilder: (context, index) {
+      final task = filteredTasks[index];
+      return GestureDetector(
+        onTap: () => _navigateToTaskDetailsPage(task), // Navigate to task details on tap
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+          padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100, // Light background color
+            borderRadius: BorderRadius.circular(12.0), // Rounded corners
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.2),
+                spreadRadius: 2,
+                blurRadius: 5,
+                offset: const Offset(0, 3), // Shadow position
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              // Circular Checkbox
+              Checkbox(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(50), // Circular shape
+                ),
+                value: task.isCompleted,
+                onChanged: (bool? value) {
+                  setState(() {
+                    task.isCompleted = value ?? false;
+                  });
+                },
+              ),
+              const SizedBox(width: 8.0),
+
+              // Task Details
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Task Title
+                    Text(
+                      task.title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16.0,
+                        color: Colors.black,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4.0),
+                    // Task Priority and Due Date
+                    Text(
+                      'Priority: ${task.priority.toString().split('.').last}, '
+                      'Due: ${task.dueDate != null ? DateFormat.yMMMd().format(task.dueDate!) : 'No due date'}',
+                      style: const TextStyle(
+                        fontSize: 14.0,
+                        color: Color.fromARGB(255, 0, 0, 0),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
 
   // Add the navigation function to navigate to task details
   void _navigateToTaskDetailsPage(Task task) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => TaskDetailsPage(
-          task: task,
-          onDelete: () {
-            setState(() {
-              _tasks.remove(task); // Handle task deletion
-            });
-            Navigator.of(context).pop(); // Close details page after deletion
-          },
-          onEdit: () {
-            // Handle task editing
-          },
-        ),
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => TaskDetailsPage(
+        task: task,
+        onDelete: () {
+          setState(() {
+            _tasks.remove(task); // Handle task deletion
+          });
+          Navigator.of(context).pop(); // Close details page after deletion
+        },
+        onEdit: () {
+          setState(() {
+            // Trigger refresh after editing
+          });
+          Navigator.of(context).maybePop(); // Safely close the details page
+        },
       ),
-    );
-  }
+    ),
+  );
+}
 
   // Method to filter tasks based on their category
   List<Task> _filterTasks(TaskCategory category) {

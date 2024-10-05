@@ -35,18 +35,19 @@ class _TaskDetailsPageState extends State<TaskDetailsPage> {
   }
 
   void _updateTask() {
-    setState(() {
-      widget.task.title = _titleController.text;
-      widget.task.description = _descriptionController.text;
-      widget.task.priority = _selectedPriority;
-      widget.task.dueDate = _selectedDate;
-      widget.task.notes = _notesController.text;
-      widget.task.isRecurring = _isRecurring;
-      widget.task.recurrence = _selectedRecurrence;
-      widget.onEdit(); // Notify parent of changes
-    });
-    Navigator.of(context).pop(); // Go back to the previous screen
-  }
+  setState(() {
+    widget.task.title = _titleController.text;
+    widget.task.description = _descriptionController.text;
+    widget.task.priority = _selectedPriority;
+    widget.task.dueDate = _selectedDate;
+    widget.task.notes = _notesController.text;
+    widget.task.isRecurring = _isRecurring;
+    widget.task.recurrence = _selectedRecurrence;
+  });
+
+  widget.onEdit(); // Notify parent of changes
+  // Removed Navigator.pop() here to avoid extra screen pop
+}
 
   void _addSubtask() {
     setState(() {
