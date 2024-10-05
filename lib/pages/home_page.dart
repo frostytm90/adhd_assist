@@ -11,9 +11,9 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
 
+  // Updated the pages list to remove the Calendar page placeholder
   static final List<Widget> _pages = <Widget>[
     const TaskPage(), // Task page for tasks
-    const Center(child: Text('Calendar Page Placeholder')), // Placeholder for Calendar
     const Center(child: Text('Profile Page Placeholder')),  // Placeholder for Profile
   ];
 
@@ -32,10 +32,6 @@ class _HomePageState extends State<HomePage> {
           BottomNavigationBarItem(
             icon: Icon(Icons.list),
             label: 'Tasks',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today),
-            label: 'Calendar',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person),
