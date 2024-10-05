@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'task_page.dart'; // Import TaskPage
 
 class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+
   @override
   _HomePageState createState() => _HomePageState();
 }
@@ -9,10 +11,10 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
 
-  static List<Widget> _pages = <Widget>[
-    TaskPage(), // Task page for tasks
-    Center(child: Text('Calendar Page Placeholder')), // Placeholder for Calendar
-    Center(child: Text('Profile Page Placeholder')),  // Placeholder for Profile
+  static final List<Widget> _pages = <Widget>[
+    const TaskPage(), // Task page for tasks
+    const Center(child: Text('Calendar Page Placeholder')), // Placeholder for Calendar
+    const Center(child: Text('Profile Page Placeholder')),  // Placeholder for Profile
   ];
 
   void _onItemTapped(int index) {
