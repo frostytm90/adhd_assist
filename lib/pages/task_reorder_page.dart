@@ -4,7 +4,7 @@ import '../models/task.dart';
 class TaskReorderPage extends StatefulWidget {
   final List<Task> tasks;
 
-  const TaskReorderPage({Key? key, required this.tasks}) : super(key: key);
+  const TaskReorderPage({super.key, required this.tasks});
 
   @override
   _TaskReorderPageState createState() => _TaskReorderPageState();

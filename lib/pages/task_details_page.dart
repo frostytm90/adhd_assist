@@ -7,7 +7,7 @@ class TaskDetailsPage extends StatefulWidget {
   final Function onDelete;
   final Function onEdit;
 
-  TaskDetailsPage({required this.task, required this.onDelete, required this.onEdit});
+  const TaskDetailsPage({super.key, required this.task, required this.onDelete, required this.onEdit});
 
   @override
   _TaskDetailsPageState createState() => _TaskDetailsPageState();
@@ -53,14 +53,14 @@ class _TaskDetailsPageState extends State<TaskDetailsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Task Details'),
+        title: const Text('Task Details'),
         actions: [
           IconButton(
-            icon: Icon(Icons.check),
+            icon: const Icon(Icons.check),
             onPressed: _updateTask,
           ),
           IconButton(
-            icon: Icon(Icons.delete),
+            icon: const Icon(Icons.delete),
             onPressed: () {
               widget.onDelete();
               Navigator.of(context).pop();
@@ -69,28 +69,28 @@ class _TaskDetailsPageState extends State<TaskDetailsPage> {
         ],
       ),
       body: Padding(
-        padding: EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16.0),
         child: ListView(
           children: [
             // Task Title
             TextField(
               controller: _titleController,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Task Title',
                 border: OutlineInputBorder(),
               ),
             ),
-            SizedBox(height: 16.0),
+            const SizedBox(height: 16.0),
             // Task Description
             TextField(
               controller: _descriptionController,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Task Description',
                 border: OutlineInputBorder(),
               ),
               maxLines: 3,
             ),
-            SizedBox(height: 16.0),
+            const SizedBox(height: 16.0),
             // Task Priority
             DropdownButtonFormField<TaskPriority>(
               value: _selectedPriority,
@@ -105,12 +105,12 @@ class _TaskDetailsPageState extends State<TaskDetailsPage> {
                   child: Text(priority.toString().split('.').last),
                 );
               }).toList(),
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Priority',
                 border: OutlineInputBorder(),
               ),
             ),
-            SizedBox(height: 16.0),
+            const SizedBox(height: 16.0),
             // Due Date
             Row(
               children: [
@@ -122,7 +122,7 @@ class _TaskDetailsPageState extends State<TaskDetailsPage> {
                   ),
                 ),
                 IconButton(
-                  icon: Icon(Icons.calendar_today),
+                  icon: const Icon(Icons.calendar_today),
                   onPressed: () {
                     _pickDueDate(context).then((pickedDate) {
                       if (pickedDate != null) {

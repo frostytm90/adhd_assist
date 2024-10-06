@@ -27,6 +27,20 @@ class _TaskCalendarPageState extends State<TaskCalendarPage> {
     }).toList();
   }
 
+  // Get color based on task category
+  Color _getCategoryColor(TaskCategory category) {
+    switch (category) {
+      case TaskCategory.work:
+        return Colors.blue;
+      case TaskCategory.personal:
+        return Colors.green;
+      case TaskCategory.wishlist:
+        return Colors.orange;
+      default:
+        return Colors.grey;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -42,57 +56,11 @@ class _TaskCalendarPageState extends State<TaskCalendarPage> {
             selectedDayPredicate: (day) {
               return isSameDay(_selectedDay, day);
             },
-            eventLoader: (day) {
-              // Load tasks for the current day
-              return _getTasksForDay(day);
-            },
             onDaySelected: (selectedDay, focusedDay) {
               setState(() {
                 _selectedDay = selectedDay;
                 _focusedDay = focusedDay; // Update the focused day
               });
-
-              // Show a bottom sheet with the tasks for the selected day
-              showModalBottomSheet(
-                context: context,
-                builder: (context) {
-                  List<Task> tasksForDay = _getTasksForDay(selectedDay);
-                  return Container(
-                    padding: EdgeInsets.all(16.0),
-                    child: tasksForDay.isEmpty
-                        ? Center(child: Text('No tasks for this day.'))
-                        : Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Tasks for ${DateFormat.yMMMd().format(selectedDay)}',
-                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                              ),
-                              Expanded(
-                                child: ListView.builder(
-                                  itemCount: tasksForDay.length,
-                                  itemBuilder: (context, index) {
-                                    final task = tasksForDay[index];
-                                    return ListTile(
-                                      title: Text(task.title),
-                                      subtitle: Text('Priority: ${task.priority.toString().split('.').last}'),
-                                      trailing: Checkbox(
-                                        value: task.isCompleted,
-                                        onChanged: (bool? value) {
-                                          setState(() {
-                                            task.isCompleted = value ?? false;
-                                          });
-                                        },
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                            ],
-                          ),
-                  );
-                },
-              );
             },
             calendarFormat: _calendarFormat,
             onFormatChanged: (format) {
@@ -103,11 +71,24 @@ class _TaskCalendarPageState extends State<TaskCalendarPage> {
             onPageChanged: (focusedDay) {
               _focusedDay = focusedDay;
             },
-            calendarStyle: CalendarStyle(
-              markerDecoration: BoxDecoration(
-                color: Colors.blue,
-                shape: BoxShape.circle,
-              ),
+            eventLoader: (day) => _getTasksForDay(day),
+            calendarBuilders: CalendarBuilders(
+              markerBuilder: (context, date, tasks) {
+                if (tasks.isNotEmpty) {
+                  Task task = tasks.first as Task; // Cast tasks.first to Task
+                  TaskCategory category = task.category;
+
+                  return Container(
+                    width: 8.0,
+                    height: 8.0,
+                    decoration: BoxDecoration(
+                      color: _getCategoryColor(category),
+                      shape: BoxShape.circle,
+                    ),
+                  );
+                }
+                return null;
+              },
             ),
           ),
           Expanded(

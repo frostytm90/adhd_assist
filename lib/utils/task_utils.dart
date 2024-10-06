@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../models/task.dart'; // Import the Task model for TaskCategory enum
+import '../models/task.dart'; // Import your Task model here
 
 Color getCategoryColor(TaskCategory category) {
   switch (category) {
@@ -8,8 +8,7 @@ Color getCategoryColor(TaskCategory category) {
     case TaskCategory.personal:
       return Colors.green;
     case TaskCategory.wishlist:
-      return Colors.orange;
-    case TaskCategory.all:
+      return Colors.purple;
     default:
       return Colors.grey;
   }
