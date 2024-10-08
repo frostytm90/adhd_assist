@@ -1,9 +1,13 @@
+// pages/task_page.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart'; // For date formatting
-import '../models/task.dart'; // Correct path to the Task model
-import 'task_details_page.dart'; // Correct path to TaskDetailsPage
-import 'task_calendar_page.dart'; // Import the task calendar page
-import 'task_reorder_page.dart'; // Import the task reorder page
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert'; // For JSON encoding and decoding
+
+import '../models/task.dart';
+import 'task_details_page.dart';
+import 'task_calendar_page.dart';
+import 'task_reorder_page.dart';
 
 class TaskPage extends StatefulWidget {
   const TaskPage({super.key});
@@ -13,44 +17,66 @@ class TaskPage extends StatefulWidget {
 }
 
 class _TaskPageState extends State<TaskPage> {
-  final List<Task> _tasks = []; // List to store tasks
+  final List<Task> _tasks = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTasks(); // Load tasks when the app starts
+  }
+
+  // Method to load tasks from SharedPreferences
+  Future<void> _loadTasks() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    List<String>? taskStrings = prefs.getStringList('tasks');
+    if (taskStrings != null) {
+      setState(() {
+        _tasks.addAll(taskStrings.map((taskString) => Task.fromJson(jsonDecode(taskString))));
+      });
+    }
+  }
+
+  // Method to save tasks to SharedPreferences
+  Future<void> _saveTasks() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    List<String> taskStrings = _tasks.map((task) => jsonEncode(task.toJson())).toList();
+    await prefs.setStringList('tasks', taskStrings);
+  }
 
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 4, // Number of tabs (All, Work, Personal, Wishlist)
+      length: 4,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Tasks'),
           actions: [
-            // Button to navigate to Task Calendar
             IconButton(
               icon: const Icon(Icons.calendar_today),
               onPressed: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => TaskCalendarPage(tasks: _tasks), // Navigate to the TaskCalendarPage
+                    builder: (context) => TaskCalendarPage(tasks: _tasks),
                   ),
                 );
               },
             ),
-            // Button to navigate to Task Reordering
             IconButton(
               icon: const Icon(Icons.reorder),
               onPressed: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => TaskReorderPage(tasks: _tasks), // Navigate to the TaskReorderPage
+                    builder: (context) => TaskReorderPage(tasks: _tasks),
                   ),
                 );
               },
             ),
           ],
           bottom: const TabBar(
-            isScrollable: false, // Centralizes the tabs
-            labelPadding: EdgeInsets.symmetric(horizontal: 24.0), // Adds space between tabs
+            isScrollable: false,
+            labelPadding: EdgeInsets.symmetric(horizontal: 24.0),
             tabs: [
               Tab(text: 'All'),
               Tab(text: 'Work'),
@@ -75,114 +101,107 @@ class _TaskPageState extends State<TaskPage> {
     );
   }
 
-  // Method to build the task list view for each category
-// Updated Method to Build the Task List View
-Widget _buildTaskListView(TaskCategory category) {
-  List<Task> filteredTasks = _filterTasks(category);
+  Widget _buildTaskListView(TaskCategory category) {
+    List<Task> filteredTasks = _filterTasks(category);
 
-  if (filteredTasks.isEmpty) {
-    return const Center(child: Text('No tasks in this category'));
+    if (filteredTasks.isEmpty) {
+      return const Center(child: Text('No tasks in this category'));
+    }
+
+    return ListView.builder(
+      itemCount: filteredTasks.length,
+      itemBuilder: (context, index) {
+        final task = filteredTasks[index];
+        return GestureDetector(
+          onTap: () => _navigateToTaskDetailsPage(task),
+          child: Container(
+            margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+            padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(12.0),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.2),
+                  spreadRadius: 2,
+                  blurRadius: 5,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Checkbox(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(50),
+                  ),
+                  value: task.isCompleted,
+                  onChanged: (bool? value) {
+                    setState(() {
+                      task.isCompleted = value ?? false;
+                      _saveTasks(); // Save changes after marking task completed
+                    });
+                  },
+                ),
+                const SizedBox(width: 8.0),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        task.title,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16.0,
+                          color: Colors.black,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4.0),
+                      Text(
+                        'Priority: ${task.priority.toString().split('.').last}, '
+                        'Due: ${task.dueDate != null ? DateFormat.yMMMd().format(task.dueDate!) : 'No due date'}',
+                        style: const TextStyle(
+                          fontSize: 14.0,
+                          color: Color.fromARGB(255, 0, 0, 0),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
-  return ListView.builder(
-    itemCount: filteredTasks.length,
-    itemBuilder: (context, index) {
-      final task = filteredTasks[index];
-      return GestureDetector(
-        onTap: () => _navigateToTaskDetailsPage(task), // Navigate to task details on tap
-        child: Container(
-          margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-          padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade100, // Light background color
-            borderRadius: BorderRadius.circular(12.0), // Rounded corners
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.2),
-                spreadRadius: 2,
-                blurRadius: 5,
-                offset: const Offset(0, 3), // Shadow position
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              // Circular Checkbox
-              Checkbox(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(50), // Circular shape
-                ),
-                value: task.isCompleted,
-                onChanged: (bool? value) {
-                  setState(() {
-                    task.isCompleted = value ?? false;
-                  });
-                },
-              ),
-              const SizedBox(width: 8.0),
-
-              // Task Details
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Task Title
-                    Text(
-                      task.title,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16.0,
-                        color: Colors.black,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4.0),
-                    // Task Priority and Due Date
-                    Text(
-                      'Priority: ${task.priority.toString().split('.').last}, '
-                      'Due: ${task.dueDate != null ? DateFormat.yMMMd().format(task.dueDate!) : 'No due date'}',
-                      style: const TextStyle(
-                        fontSize: 14.0,
-                        color: Color.fromARGB(255, 0, 0, 0),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    },
-  );
-}
-
-  // Add the navigation function to navigate to task details
   void _navigateToTaskDetailsPage(Task task) {
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (context) => TaskDetailsPage(
-        task: task,
-        onDelete: () {
-          setState(() {
-            _tasks.remove(task); // Handle task deletion
-          });
-          Navigator.of(context).pop(); // Close details page after deletion
-        },
-        onEdit: () {
-          setState(() {
-            // Trigger refresh after editing
-          });
-          Navigator.of(context).maybePop(); // Safely close the details page
-        },
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TaskDetailsPage(
+          task: task,
+          onDelete: () {
+            setState(() {
+              _tasks.remove(task);
+              _saveTasks(); // Save tasks after deleting
+            });
+            Navigator.of(context).pop();
+          },
+          onEdit: () {
+            setState(() {
+              _saveTasks(); // Save tasks after editing
+            });
+            Navigator.of(context).maybePop();
+          },
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
-  // Method to filter tasks based on their category
   List<Task> _filterTasks(TaskCategory category) {
     if (category == TaskCategory.all) {
       return _tasks;
@@ -191,7 +210,6 @@ Widget _buildTaskListView(TaskCategory category) {
     }
   }
 
-  // Method to show the Add Task dialog
   void _showAddTaskDialog() {
     final titleController = TextEditingController();
     final descriptionController = TextEditingController();
@@ -284,7 +302,6 @@ Widget _buildTaskListView(TaskCategory category) {
     );
   }
 
-  // Method to add a new task
   void _addTask(String title, String description, TaskCategory category, TaskPriority priority, DateTime? dueDate) {
     setState(() {
       _tasks.add(Task(
@@ -294,10 +311,10 @@ Widget _buildTaskListView(TaskCategory category) {
         priority: priority,
         dueDate: dueDate,
       ));
+      _saveTasks(); // Save tasks after adding a new one
     });
   }
 
-  // Method to pick a due date
   Future<DateTime?> _pickDueDate(BuildContext context) async {
     return showDatePicker(
       context: context,
