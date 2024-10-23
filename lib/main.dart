@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'pages/home_page.dart'; // Import the home page you created
+import 'package:flutter_driver/driver_extension.dart'; // Import flutter_driver extension
+import 'pages/home_page.dart';
 
 void main() {
+  enableFlutterDriverExtension(); // Enable Flutter Driver extension
   runApp(const MyApp());
 }
 
@@ -10,7 +12,9 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('Building MyApp widget...'); // Log for debugging
     return MaterialApp(
+      key: const ValueKey('adhdAssistApp'), // Added key for automation testing
       title: 'ADHD Assist',
       theme: ThemeData(
         useMaterial3: true,

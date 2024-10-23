@@ -26,6 +26,7 @@ class _TaskReorderPageState extends State<TaskReorderPage> {
         title: const Text('Reorder Tasks'),
       ),
       body: ReorderableListView(
+        key: const ValueKey('reorderableListView'),
         onReorder: (int oldIndex, int newIndex) {
           setState(() {
             if (newIndex > oldIndex) {
@@ -38,8 +39,9 @@ class _TaskReorderPageState extends State<TaskReorderPage> {
         children: [
           for (int index = 0; index < _tasks.length; index++)
             ListTile(
-              key: ValueKey(_tasks[index]),
+              key: ValueKey('reorderTask_${_tasks[index].title}_$index'),
               title: Text(_tasks[index].title),
+              trailing: const Icon(Icons.drag_handle),
             )
         ],
       ),
