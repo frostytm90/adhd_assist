@@ -1,23 +1,73 @@
 // models/task.dart
 import 'package:uuid/uuid.dart';
+import 'package:hive/hive.dart';
 
-enum TaskCategory { all, work, personal, wishlist }
-enum TaskPriority { low, medium, high }
-enum Recurrence { daily, weekly, monthly }
+part 'task.g.dart';
 
-class Task {
+@HiveType(typeId: 0)
+enum TaskCategory {
+  @HiveField(0)
+  all,
+  @HiveField(1)
+  work,
+  @HiveField(2)
+  personal,
+  @HiveField(3)
+  wishlist
+}
+
+@HiveType(typeId: 1)
+enum TaskPriority {
+  @HiveField(0)
+  low,
+  @HiveField(1)
+  medium,
+  @HiveField(2)
+  high
+}
+
+@HiveType(typeId: 2)
+enum Recurrence {
+  @HiveField(0)
+  daily,
+  @HiveField(1)
+  weekly,
+  @HiveField(2)
+  monthly
+}
+
+@HiveType(typeId: 3)
+class Task extends HiveObject {
+  @HiveField(0)
   String id;
+  
+  @HiveField(1)
   String title;
+  
+  @HiveField(2)
   String description;
+  
+  @HiveField(3)
   TaskCategory category;
+  
+  @HiveField(4)
   TaskPriority priority;
+  
+  @HiveField(5)
   DateTime? dueDate;
+  
+  @HiveField(6)
   bool isCompleted;
+  
+  @HiveField(7)
   String? notes;
+  
+  @HiveField(8)
   bool isRecurring;
+  
+  @HiveField(9)
   Recurrence? recurrence;
 
-  // Generate unique ID using UUID
   Task({
     String? id,
     required this.title,
@@ -29,7 +79,7 @@ class Task {
     this.notes,
     this.isRecurring = false,
     this.recurrence,
-  }) : id = id ?? Uuid().v4();
+  }) : id = id ?? const Uuid().v4();
 
   // Convert Task to JSON
   Map<String, dynamic> toJson() {

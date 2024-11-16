@@ -36,6 +36,10 @@ dependencies:
   intl: ^0.17.0
   table_calendar: ^3.0.6
   uuid: ^3.0.6
+  provider: ^6.1.1
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  path_provider: ^2.1.1
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -45,12 +49,8 @@ dev_dependencies:
   flutter_driver:
     sdk: flutter
   test: any
-
-  # The "flutter_lints" package below contains a set of recommended lints to
-  # encourage good coding practices. The lint set provided by the package is
-  # activated in the `analysis_options.yaml` file located at the root of your
-  # package. See that file for information about deactivating specific lint
-  # rules and activating additional ones.
+  hive_generator: ^2.0.1
+  build_runner: ^2.4.7
   flutter_lints: ^4.0.0
 
 # For information on the generic Dart part of this file, see the

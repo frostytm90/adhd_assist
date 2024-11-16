@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../models/task.dart'; // Adjust this import based on your project structure
+import '../models/task.dart';
 
 class AddTaskDialog extends StatefulWidget {
   final Function(Task) onTaskAdded;
@@ -18,6 +18,8 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
   TaskCategory? _selectedCategory;
   TaskPriority _selectedPriority = TaskPriority.medium;
   DateTime? _selectedDueDate;
+  bool _isRecurring = false;
+  Recurrence? _selectedRecurrence;
 
   void _pickDueDate() async {
     DateTime? pickedDate = await showDatePicker(
@@ -41,6 +43,8 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
         category: _selectedCategory ?? TaskCategory.personal,
         priority: _selectedPriority,
         dueDate: _selectedDueDate,
+        isRecurring: _isRecurring,
+        recurrence: _isRecurring ? _selectedRecurrence : null,
       );
 
       widget.onTaskAdded(newTask);
@@ -70,9 +74,11 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
               ),
               TextFormField(
                 controller: _descriptionController,
-                decoration:
-                    const InputDecoration(labelText: 'Task Description'),
+                decoration: const InputDecoration(labelText: 'Task Description'),
+                minLines: 2,
+                maxLines: 4,
               ),
+              const SizedBox(height: 16),
               DropdownButtonFormField<TaskCategory>(
                 decoration: const InputDecoration(labelText: 'Category'),
                 value: _selectedCategory,
@@ -87,7 +93,14 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
                     _selectedCategory = newValue;
                   });
                 },
+                validator: (value) {
+                  if (value == null) {
+                    return 'Please select a category';
+                  }
+                  return null;
+                },
               ),
+              const SizedBox(height: 16),
               DropdownButtonFormField<TaskPriority>(
                 decoration: const InputDecoration(labelText: 'Priority'),
                 value: _selectedPriority,
@@ -103,17 +116,57 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
                   });
                 },
               ),
+              const SizedBox(height: 16),
               Row(
                 children: [
-                  Text(_selectedDueDate == null
-                      ? 'No due date set'
-                      : 'Due Date: ${DateFormat.yMMMd().format(_selectedDueDate!)}'),
+                  Expanded(
+                    child: Text(_selectedDueDate == null
+                        ? 'No due date set'
+                        : 'Due Date: ${DateFormat.yMMMd().format(_selectedDueDate!)}'),
+                  ),
                   IconButton(
                     icon: const Icon(Icons.calendar_today),
                     onPressed: _pickDueDate,
                   ),
                 ],
               ),
+              const SizedBox(height: 16),
+              SwitchListTile(
+                title: const Text('Recurring Task'),
+                value: _isRecurring,
+                onChanged: (bool value) {
+                  setState(() {
+                    _isRecurring = value;
+                    if (!value) {
+                      _selectedRecurrence = null;
+                    }
+                  });
+                },
+              ),
+              if (_isRecurring) ...[
+                const SizedBox(height: 8),
+                DropdownButtonFormField<Recurrence>(
+                  decoration: const InputDecoration(labelText: 'Repeat'),
+                  value: _selectedRecurrence,
+                  items: Recurrence.values.map((Recurrence recurrence) {
+                    return DropdownMenuItem<Recurrence>(
+                      value: recurrence,
+                      child: Text(recurrence.toString().split('.').last),
+                    );
+                  }).toList(),
+                  onChanged: (newValue) {
+                    setState(() {
+                      _selectedRecurrence = newValue;
+                    });
+                  },
+                  validator: (value) {
+                    if (_isRecurring && value == null) {
+                      return 'Please select a recurrence pattern';
+                    }
+                    return null;
+                  },
+                ),
+              ],
             ],
           ),
         ),
