@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/task.dart';
+import '../services/sound_service.dart';
+import '../services/streak_service.dart';
 
 class Achievement {
   final String id;
@@ -40,34 +42,42 @@ class Achievement {
 
 class GamificationProvider with ChangeNotifier {
   late Box<dynamic> _gameBox;
+  final SoundService _soundService = SoundService();
+  final StreakService _streakService = StreakService();
+  
   List<Achievement> _achievements = [];
   int _points = 0;
   int _level = 1;
-  int _streak = 0;
-  DateTime? _lastCompletedTask;
+  int _tasksCompletedToday = 0;
+  DateTime? _lastTaskDate;
 
   // Getters
   List<Achievement> get achievements => _achievements;
   int get points => _points;
   int get level => _level;
-  int get streak => _streak;
+  StreakStats get streakStats => _streakService.stats;
+  bool get isStreakAtRisk => _streakService.isStreakAtRisk;
 
   // Points required for each level (increases exponentially)
   int getPointsForNextLevel() => 100 * (_level * 1.5).round();
 
   // Initialize Hive and load saved data
   Future<void> initHive() async {
+    await Hive.initFlutter();
     _gameBox = await Hive.openBox('gamification');
+    await _streakService.initialize();
+    await _soundService.initialize();
     _loadData();
     _initializeAchievements();
+    _resetDailyTasksIfNeeded();
   }
 
   void _loadData() {
     _points = _gameBox.get('points', defaultValue: 0);
     _level = _gameBox.get('level', defaultValue: 1);
-    _streak = _gameBox.get('streak', defaultValue: 0);
-    final lastCompleted = _gameBox.get('lastCompletedTask');
-    _lastCompletedTask = lastCompleted != null ? DateTime.parse(lastCompleted) : null;
+    _tasksCompletedToday = _gameBox.get('tasksCompletedToday', defaultValue: 0);
+    final lastTaskStr = _gameBox.get('lastTaskDate');
+    _lastTaskDate = lastTaskStr != null ? DateTime.parse(lastTaskStr) : null;
     
     final savedAchievements = _gameBox.get('achievements');
     if (savedAchievements != null) {
@@ -80,12 +90,29 @@ class GamificationProvider with ChangeNotifier {
   void _saveData() {
     _gameBox.put('points', _points);
     _gameBox.put('level', _level);
-    _gameBox.put('streak', _streak);
-    if (_lastCompletedTask != null) {
-      _gameBox.put('lastCompletedTask', _lastCompletedTask!.toIso8601String());
+    _gameBox.put('tasksCompletedToday', _tasksCompletedToday);
+    if (_lastTaskDate != null) {
+      _gameBox.put('lastTaskDate', _lastTaskDate!.toIso8601String());
     }
     _gameBox.put('achievements',
         _achievements.map((a) => a.toJson()).toList());
+    notifyListeners();
+  }
+
+  void _resetDailyTasksIfNeeded() {
+    if (_lastTaskDate == null) return;
+    
+    final now = DateTime.now();
+    if (!_isSameDay(now, _lastTaskDate!)) {
+      _tasksCompletedToday = 0;
+      _saveData();
+    }
+  }
+
+  bool _isSameDay(DateTime date1, DateTime date2) {
+    return date1.year == date2.year &&
+           date1.month == date2.month &&
+           date1.day == date2.day;
   }
 
   void _initializeAchievements() {
@@ -133,6 +160,20 @@ class GamificationProvider with ChangeNotifier {
           icon: '⚡',
           requiredCount: 10,
         ),
+        Achievement(
+          id: 'consistency_king',
+          title: 'Consistency King',
+          description: 'Complete tasks on 5 consecutive days',
+          icon: '👑',
+          requiredCount: 5,
+        ),
+        Achievement(
+          id: 'weekend_warrior',
+          title: 'Weekend Warrior',
+          description: 'Complete 3 tasks on a weekend',
+          icon: '🎮',
+          requiredCount: 3,
+        ),
       ];
       _saveData();
     }
@@ -161,78 +202,134 @@ class GamificationProvider with ChangeNotifier {
     }
 
     // Streak bonus
-    if (_streak > 0) {
-      points += (_streak * 2).clamp(0, 20); // Max 20 bonus points from streak
+    final currentStreak = _streakService.stats.currentStreak;
+    if (currentStreak > 0) {
+      points += (currentStreak * 2).clamp(0, 20); // Max 20 bonus points from streak
     }
 
     return points;
   }
 
-  void onTaskCompleted(Task task) {
+  Future<void> onTaskCompleted(Task task) async {
+    final now = DateTime.now();
+    
     // Award points
     final earnedPoints = _calculateTaskPoints(task);
     _points += earnedPoints;
 
-    // Update streak
-    final now = DateTime.now();
-    if (_lastCompletedTask != null) {
-      final difference = now.difference(_lastCompletedTask!).inDays;
-      if (difference == 1) {
-        _streak++;
-      } else if (difference > 1) {
-        _streak = 1;
-      }
+    // Update daily tasks count
+    if (_lastTaskDate == null || !_isSameDay(now, _lastTaskDate!)) {
+      _tasksCompletedToday = 1;
     } else {
-      _streak = 1;
+      _tasksCompletedToday++;
     }
-    _lastCompletedTask = now;
+    _lastTaskDate = now;
+
+    // Record streak activity
+    _streakService.recordActivity();
+
+    // Play completion sound
+    await _soundService.playTaskComplete();
 
     // Check level up
+    final oldLevel = _level;
     while (_points >= getPointsForNextLevel()) {
       _level++;
     }
+    if (_level > oldLevel) {
+      await _soundService.playLevelUp();
+    }
 
     // Check achievements
-    _checkAchievements(task);
+    final unlockedBefore = _achievements.where((a) => a.isUnlocked).length;
+    await _checkAchievements(task);
+    final unlockedAfter = _achievements.where((a) => a.isUnlocked).length;
+    
+    if (unlockedAfter > unlockedBefore) {
+      await _soundService.playAchievementUnlocked();
+    }
+
+    // Check streak milestones
+    if (_streakService.stats.currentStreak == 3 || 
+        _streakService.stats.currentStreak == 7 ||
+        _streakService.stats.currentStreak == 14 ||
+        _streakService.stats.currentStreak == 30) {
+      await _soundService.playStreakMilestone();
+    }
 
     _saveData();
-    notifyListeners();
   }
 
-  void _checkAchievements(Task task) {
-    for (var achievement in _achievements) {
-      if (!achievement.isUnlocked) {
-        switch (achievement.id) {
-          case 'first_task':
-            achievement.isUnlocked = true;
-            break;
-          case 'productive_day':
-            // Implementation needed: track daily task count
-            break;
-          case 'streak_master':
-            if (_streak >= achievement.requiredCount) {
-              achievement.isUnlocked = true;
-            }
-            break;
-          case 'early_bird':
-            if (DateTime.now().hour < 9) {
-              achievement.isUnlocked = true;
-            }
-            break;
-          case 'priority_master':
-            if (task.priority == TaskPriority.high) {
-              // Implementation needed: track high priority task count
-            }
-            break;
-        }
+  Future<void> _checkAchievements(Task task) async {
+    final stats = _streakService.stats;
+    
+    // First Task
+    _unlockAchievement('first_task');
+
+    // Productive Day
+    if (_tasksCompletedToday >= 5) {
+      _unlockAchievement('productive_day');
+    }
+
+    // Streak Master
+    if (stats.currentStreak >= 7) {
+      _unlockAchievement('streak_master');
+    }
+
+    // Task Warrior (total tasks completed)
+    if (_gameBox.get('totalTasksCompleted', defaultValue: 0) >= 50) {
+      _unlockAchievement('task_warrior');
+    }
+
+    // Early Bird
+    if (DateTime.now().hour < 9) {
+      _unlockAchievement('early_bird');
+    }
+
+    // Priority Master
+    if (task.priority == TaskPriority.high) {
+      final highPriorityCount = _gameBox.get('highPriorityCount', defaultValue: 0) + 1;
+      _gameBox.put('highPriorityCount', highPriorityCount);
+      if (highPriorityCount >= 10) {
+        _unlockAchievement('priority_master');
       }
+    }
+
+    // Consistency King
+    if (stats.currentStreak >= 5) {
+      _unlockAchievement('consistency_king');
+    }
+
+    // Weekend Warrior
+    if (DateTime.now().weekday >= 6 && _tasksCompletedToday >= 3) {
+      _unlockAchievement('weekend_warrior');
     }
   }
 
-  // Get progress towards next level (0.0 to 1.0)
+  void _unlockAchievement(String id) {
+    final achievement = _achievements.firstWhere(
+      (a) => a.id == id && !a.isUnlocked,
+      orElse: () => Achievement(
+        id: '',
+        title: '',
+        description: '',
+        icon: '',
+        requiredCount: 0,
+        isUnlocked: true,
+      ),
+    );
+    
+    if (!achievement.isUnlocked) {
+      achievement.isUnlocked = true;
+      _saveData();
+    }
+  }
+
   double getLevelProgress() {
-    final pointsForNextLevel = getPointsForNextLevel();
-    final pointsInCurrentLevel = _points - (pointsForNextLevel - 100);
-    return pointsInCurrentLevel / pointsForNextLevel;
+    final pointsForCurrentLevel = getPointsForNextLevel();
+    final previousLevelPoints = (100 * ((_level - 1) * 1.5)).round();
+    final currentPoints = _points - previousLevelPoints;
+    final requiredPoints = pointsForCurrentLevel - previousLevelPoints;
+    return currentPoints / requiredPoints;
   }
 }
