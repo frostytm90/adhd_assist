@@ -80,11 +80,11 @@ class TaskCategoryAdapter extends TypeAdapter<TaskCategory> {
       case 0:
         return TaskCategory.all;
       case 1:
-        return TaskCategory.work;
+        return TaskCategory.daily;
       case 2:
-        return TaskCategory.personal;
+        return TaskCategory.important;
       case 3:
-        return TaskCategory.wishlist;
+        return TaskCategory.goals;
       default:
         return TaskCategory.all;
     }
@@ -96,13 +96,13 @@ class TaskCategoryAdapter extends TypeAdapter<TaskCategory> {
       case TaskCategory.all:
         writer.writeByte(0);
         break;
-      case TaskCategory.work:
+      case TaskCategory.daily:
         writer.writeByte(1);
         break;
-      case TaskCategory.personal:
+      case TaskCategory.important:
         writer.writeByte(2);
         break;
-      case TaskCategory.wishlist:
+      case TaskCategory.goals:
         writer.writeByte(3);
         break;
     }

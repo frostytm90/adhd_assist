@@ -9,11 +9,11 @@ enum TaskCategory {
   @HiveField(0)
   all,
   @HiveField(1)
-  work,
+  daily,  // For routine tasks and daily activities
   @HiveField(2)
-  personal,
+  important,  // For high-priority tasks
   @HiveField(3)
-  wishlist
+  goals  // For long-term objectives and personal development
 }
 
 @HiveType(typeId: 1)
@@ -138,20 +138,20 @@ class Task extends HiveObject {
       Task(
         title: 'Work Meeting',
         description: 'Meeting with the team to discuss project updates',
-        category: TaskCategory.work,
+        category: TaskCategory.important,
         priority: TaskPriority.high,
         dueDate: DateTime.now().add(Duration(days: 1)),
       ),
       Task(
         title: 'Grocery Shopping',
         description: 'Buy ingredients for dinner',
-        category: TaskCategory.personal,
+        category: TaskCategory.daily,
         priority: TaskPriority.medium,
       ),
       Task(
         title: 'Read a Book',
         description: 'Read 30 pages of a new book',
-        category: TaskCategory.wishlist,
+        category: TaskCategory.goals,
         priority: TaskPriority.low,
         recurrence: Recurrence.daily,
       ),

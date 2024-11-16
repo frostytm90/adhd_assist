@@ -30,14 +30,14 @@ class _TaskCalendarPageState extends State<TaskCalendarPage> {
   // Get color based on task category
   Color _getCategoryColor(TaskCategory category) {
     switch (category) {
-      case TaskCategory.work:
-        return Colors.blue;
-      case TaskCategory.personal:
-        return Colors.green;
-      case TaskCategory.wishlist:
-        return Colors.orange;
-      default:
+      case TaskCategory.all:
         return Colors.grey;
+      case TaskCategory.daily:
+        return Colors.green;  // Green for daily tasks
+      case TaskCategory.important:
+        return Colors.red;    // Red for important tasks
+      case TaskCategory.goals:
+        return Colors.blue;   // Blue for long-term goals
     }
   }
 
