@@ -1,5 +1,10 @@
+// lib/pages/home_page.dart
+
 import 'package:flutter/material.dart';
 import 'task_page.dart'; // Import TaskPage
+import 'profile_page.dart'; // Import ProfilePage
+import 'add_task_dialog.dart'; // Import the Add Task Dialog widget
+import '../models/task.dart'; // Import Task model to create new tasks
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -11,15 +16,23 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
 
-  // Updated the pages list to remove the Calendar page placeholder
-  static final List<Widget> _pages = <Widget>[
-    const TaskPage(), // Task page for tasks
-    const Center(child: Text('Profile Page Placeholder')),  // Placeholder for Profile
-  ];
+  final List<Task> _tasks = []; // List to hold the tasks
+
+  // Pages list, with TaskPage and ProfilePage
+  List<Widget> get _pages => <Widget>[
+        const TaskPage(), // Task page for tasks
+        const ProfilePage(), // Add ProfilePage to the list
+      ];
 
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
+    });
+  }
+
+  void _addTask(Task task) {
+    setState(() {
+      _tasks.add(task); // Add new task to the list
     });
   }
 
@@ -35,12 +48,28 @@ class _HomePageState extends State<HomePage> {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person),
-            label: 'Mine',
+            label: 'Profile', // Changed label to "Profile"
           ),
         ],
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
       ),
+      floatingActionButton: _selectedIndex == 0
+          ? FloatingActionButton(
+              key: const ValueKey('addTaskButton'),
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => AddTaskDialog(
+                    onTaskAdded: (newTask) {
+                      _addTask(newTask); // Call _addTask to add the new task
+                    },
+                  ),
+                );
+              },
+              child: const Icon(Icons.add),
+            )
+          : null, // Only show the FAB on the Task page
     );
   }
 }
