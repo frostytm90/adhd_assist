@@ -1,13 +1,7 @@
-// pages/task_page.dart
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart'; // For date formatting
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert'; // For JSON encoding and decoding
-
+import 'package:intl/intl.dart';
 import '../models/task.dart';
 import 'task_details_page.dart';
-import 'task_calendar_page.dart';
-import 'task_reorder_page.dart';
 
 class TaskPage extends StatefulWidget {
   const TaskPage({super.key});
@@ -17,63 +11,15 @@ class TaskPage extends StatefulWidget {
 }
 
 class _TaskPageState extends State<TaskPage> {
-  final List<Task> _tasks = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadTasks(); // Load tasks when the app starts
-  }
-
-  // Method to load tasks from SharedPreferences
-  Future<void> _loadTasks() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    List<String>? taskStrings = prefs.getStringList('tasks');
-    if (taskStrings != null) {
-      setState(() {
-        _tasks.addAll(taskStrings.map((taskString) => Task.fromJson(jsonDecode(taskString))));
-      });
-    }
-  }
-
-  // Method to save tasks to SharedPreferences
-  Future<void> _saveTasks() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    List<String> taskStrings = _tasks.map((task) => jsonEncode(task.toJson())).toList();
-    await prefs.setStringList('tasks', taskStrings);
-  }
+  final List<Task> _tasks = []; // List to store tasks
 
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 4,
+      length: 4, // Number of tabs (All, Work, Personal, Wishlist)
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Tasks'),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.calendar_today),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => TaskCalendarPage(tasks: _tasks),
-                  ),
-                );
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.reorder),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => TaskReorderPage(tasks: _tasks),
-                  ),
-                );
-              },
-            ),
-          ],
           bottom: const TabBar(
             isScrollable: false,
             labelPadding: EdgeInsets.symmetric(horizontal: 24.0),
@@ -94,6 +40,7 @@ class _TaskPageState extends State<TaskPage> {
           ],
         ),
         floatingActionButton: FloatingActionButton(
+          key: const ValueKey('addTaskButton'),
           onPressed: _showAddTaskDialog,
           child: const Icon(Icons.add),
         ),
@@ -101,6 +48,7 @@ class _TaskPageState extends State<TaskPage> {
     );
   }
 
+  // Method to build the task list view for each category
   Widget _buildTaskListView(TaskCategory category) {
     List<Task> filteredTasks = _filterTasks(category);
 
@@ -113,6 +61,7 @@ class _TaskPageState extends State<TaskPage> {
       itemBuilder: (context, index) {
         final task = filteredTasks[index];
         return GestureDetector(
+          key: ValueKey('taskItem_${task.title}_$index'),
           onTap: () => _navigateToTaskDetailsPage(task),
           child: Container(
             margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
@@ -132,6 +81,7 @@ class _TaskPageState extends State<TaskPage> {
             child: Row(
               children: [
                 Checkbox(
+                  key: ValueKey('taskCheckbox_${task.title}_$index'),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(50),
                   ),
@@ -139,7 +89,9 @@ class _TaskPageState extends State<TaskPage> {
                   onChanged: (bool? value) {
                     setState(() {
                       task.isCompleted = value ?? false;
-                      _saveTasks(); // Save changes after marking task completed
+                      if (task.isRecurring && task.isCompleted) {
+                        _addRecurringTask(task);
+                      }
                     });
                   },
                 ),
@@ -150,6 +102,7 @@ class _TaskPageState extends State<TaskPage> {
                     children: [
                       Text(
                         task.title,
+                        key: ValueKey('taskTitle_${task.title}_$index'),
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16.0,
@@ -178,6 +131,16 @@ class _TaskPageState extends State<TaskPage> {
     );
   }
 
+  // Method to filter tasks based on their category
+  List<Task> _filterTasks(TaskCategory category) {
+    if (category == TaskCategory.all) {
+      return _tasks;
+    } else {
+      return _tasks.where((task) => task.category == category).toList();
+    }
+  }
+
+  // Method to navigate to the task details page
   void _navigateToTaskDetailsPage(Task task) {
     Navigator.push(
       context,
@@ -187,13 +150,12 @@ class _TaskPageState extends State<TaskPage> {
           onDelete: () {
             setState(() {
               _tasks.remove(task);
-              _saveTasks(); // Save tasks after deleting
             });
             Navigator.of(context).pop();
           },
           onEdit: () {
             setState(() {
-              _saveTasks(); // Save tasks after editing
+              // Refresh the state after editing
             });
             Navigator.of(context).maybePop();
           },
@@ -202,107 +164,150 @@ class _TaskPageState extends State<TaskPage> {
     );
   }
 
-  List<Task> _filterTasks(TaskCategory category) {
-    if (category == TaskCategory.all) {
-      return _tasks;
-    } else {
-      return _tasks.where((task) => task.category == category).toList();
-    }
-  }
-
+  // Method to show the Add Task dialog
   void _showAddTaskDialog() {
     final titleController = TextEditingController();
     final descriptionController = TextEditingController();
     TaskCategory selectedCategory = TaskCategory.all;
     TaskPriority selectedPriority = TaskPriority.medium;
     DateTime? selectedDate;
+    bool isRecurring = false;
+    Recurrence? selectedRecurrence;
 
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Add New Task'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              TextField(
-                controller: titleController,
-                decoration: const InputDecoration(labelText: 'Task Title'),
-              ),
-              TextField(
-                controller: descriptionController,
-                decoration: const InputDecoration(labelText: 'Task Description'),
-              ),
-              DropdownButton<TaskCategory>(
-                value: selectedCategory,
-                onChanged: (TaskCategory? newCategory) {
-                  setState(() {
-                    selectedCategory = newCategory!;
-                  });
-                },
-                items: TaskCategory.values.map<DropdownMenuItem<TaskCategory>>((TaskCategory category) {
-                  return DropdownMenuItem<TaskCategory>(
-                    value: category,
-                    child: Text(category.toString().split('.').last),
-                  );
-                }).toList(),
-              ),
-              DropdownButton<TaskPriority>(
-                value: selectedPriority,
-                onChanged: (TaskPriority? newPriority) {
-                  setState(() {
-                    selectedPriority = newPriority!;
-                  });
-                },
-                items: TaskPriority.values.map<DropdownMenuItem<TaskPriority>>((TaskPriority priority) {
-                  return DropdownMenuItem<TaskPriority>(
-                    value: priority,
-                    child: Text(priority.toString().split('.').last),
-                  );
-                }).toList(),
-              ),
-              Row(
-                children: <Widget>[
-                  Text(selectedDate == null
-                      ? 'No due date set'
-                      : 'Due Date: ${DateFormat.yMMMd().format(selectedDate!)}'),
-                  IconButton(
-                    icon: const Icon(Icons.calendar_today),
-                    onPressed: () {
-                      _pickDueDate(context).then((pickedDate) {
-                        if (pickedDate != null) {
-                          setState(() {
-                            selectedDate = pickedDate;
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Add New Task'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    TextField(
+                      key: const ValueKey('addTaskTitleField'),
+                      controller: titleController,
+                      decoration: const InputDecoration(labelText: 'Task Title'),
+                    ),
+                    TextField(
+                      key: const ValueKey('addTaskDescriptionField'),
+                      controller: descriptionController,
+                      decoration: const InputDecoration(labelText: 'Task Description'),
+                    ),
+                    DropdownButton<TaskCategory>(
+                      key: const ValueKey('addTaskCategoryDropdown'),
+                      value: selectedCategory,
+                      onChanged: (TaskCategory? newCategory) {
+                        setDialogState(() {
+                          selectedCategory = newCategory!;
+                        });
+                      },
+                      items: TaskCategory.values.map<DropdownMenuItem<TaskCategory>>((TaskCategory category) {
+                        return DropdownMenuItem<TaskCategory>(
+                          value: category,
+                          child: Text(category.toString().split('.').last),
+                        );
+                      }).toList(),
+                    ),
+                    DropdownButton<TaskPriority>(
+                      key: const ValueKey('addTaskPriorityDropdown'),
+                      value: selectedPriority,
+                      onChanged: (TaskPriority? newPriority) {
+                        setDialogState(() {
+                          selectedPriority = newPriority!;
+                        });
+                      },
+                      items: TaskPriority.values.map<DropdownMenuItem<TaskPriority>>((TaskPriority priority) {
+                        return DropdownMenuItem<TaskPriority>(
+                          value: priority,
+                          child: Text(priority.toString().split('.').last),
+                        );
+                      }).toList(),
+                    ),
+                    Row(
+                      children: <Widget>[
+                        Text(
+                          selectedDate == null
+                              ? 'No due date set'
+                              : 'Due Date: ${DateFormat.yMMMd().format(selectedDate!)}',
+                          key: const ValueKey('addTaskDueDateText'),
+                        ),
+                        IconButton(
+                          key: const ValueKey('addTaskDueDateButton'),
+                          icon: const Icon(Icons.calendar_today),
+                          onPressed: () {
+                            _pickDueDate(context).then((pickedDate) {
+                              if (pickedDate != null) {
+                                setDialogState(() {
+                                  selectedDate = pickedDate;
+                                });
+                              }
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                    SwitchListTile(
+                      key: const ValueKey('addTaskRecurringSwitch'),
+                      title: const Text('Recurring Task'),
+                      value: isRecurring,
+                      onChanged: (bool value) {
+                        setDialogState(() {
+                          isRecurring = value;
+                          if (!value) {
+                            selectedRecurrence = null;
+                          }
+                        });
+                      },
+                    ),
+                    if (isRecurring)
+                      DropdownButton<Recurrence>(
+                        key: const ValueKey('addTaskRecurrenceDropdown'),
+                        value: selectedRecurrence,
+                        onChanged: (Recurrence? newRecurrence) {
+                          setDialogState(() {
+                            selectedRecurrence = newRecurrence;
                           });
-                        }
-                      });
-                    },
-                  ),
-                ],
+                        },
+                        items: Recurrence.values.map<DropdownMenuItem<Recurrence>>((Recurrence recurrence) {
+                          return DropdownMenuItem<Recurrence>(
+                            value: recurrence,
+                            child: Text(recurrence.toString().split('.').last),
+                          );
+                        }).toList(),
+                      ),
+                  ],
+                ),
               ),
-            ],
-          ),
-          actions: <Widget>[
-            ElevatedButton(
-              onPressed: () {
-                _addTask(
-                  titleController.text,
-                  descriptionController.text,
-                  selectedCategory,
-                  selectedPriority,
-                  selectedDate,
-                );
-                Navigator.of(context).pop();
-              },
-              child: const Text('Add'),
-            ),
-          ],
+              actions: <Widget>[
+                ElevatedButton(
+                  key: const ValueKey('addTaskSaveButton'),
+                  onPressed: () {
+                    _addTask(
+                      titleController.text,
+                      descriptionController.text,
+                      selectedCategory,
+                      selectedPriority,
+                      selectedDate,
+                      isRecurring,
+                      selectedRecurrence,
+                    );
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('Add'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
   }
 
-  void _addTask(String title, String description, TaskCategory category, TaskPriority priority, DateTime? dueDate) {
+  // Method to add a new task
+  void _addTask(String title, String description, TaskCategory category, TaskPriority priority, DateTime? dueDate,
+      bool isRecurring, Recurrence? recurrence) {
     setState(() {
       _tasks.add(Task(
         title: title,
@@ -310,9 +315,42 @@ class _TaskPageState extends State<TaskPage> {
         category: category,
         priority: priority,
         dueDate: dueDate,
+        isRecurring: isRecurring,
+        recurrence: recurrence,
       ));
-      _saveTasks(); // Save tasks after adding a new one
     });
+  }
+
+  // Method to add a recurring task
+  void _addRecurringTask(Task completedTask) {
+    DateTime nextDueDate;
+    switch (completedTask.recurrence) {
+      case Recurrence.daily:
+        nextDueDate = completedTask.dueDate!.add(const Duration(days: 1));
+        break;
+      case Recurrence.weekly:
+        nextDueDate = completedTask.dueDate!.add(const Duration(days: 7));
+        break;
+      case Recurrence.monthly:
+        nextDueDate = DateTime(
+          completedTask.dueDate!.year,
+          completedTask.dueDate!.month + 1,
+          completedTask.dueDate!.day,
+        );
+        break;
+      default:
+        return;
+    }
+
+    _addTask(
+      completedTask.title,
+      completedTask.description,
+      completedTask.category,
+      completedTask.priority,
+      nextDueDate,
+      completedTask.isRecurring,
+      completedTask.recurrence,
+    );
   }
 
   Future<DateTime?> _pickDueDate(BuildContext context) async {

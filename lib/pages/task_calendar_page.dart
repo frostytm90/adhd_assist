@@ -50,6 +50,7 @@ class _TaskCalendarPageState extends State<TaskCalendarPage> {
       body: Column(
         children: [
           TableCalendar(
+            key: const ValueKey('taskCalendar'),
             firstDay: DateTime.utc(2000, 1, 1),
             lastDay: DateTime.utc(2100, 12, 31),
             focusedDay: _focusedDay,
@@ -79,6 +80,7 @@ class _TaskCalendarPageState extends State<TaskCalendarPage> {
                   TaskCategory category = task.category;
 
                   return Container(
+                    key: ValueKey('marker_${date.toIso8601String()}'),
                     width: 8.0,
                     height: 8.0,
                     decoration: BoxDecoration(
@@ -104,15 +106,18 @@ class _TaskCalendarPageState extends State<TaskCalendarPage> {
       return const Center(child: Text('No tasks for this day.'));
     }
     return ListView.builder(
+      key: const ValueKey('taskListView'),
       itemCount: tasks.length,
       itemBuilder: (context, index) {
         final task = tasks[index];
         return ListTile(
+          key: ValueKey('task_${task.id}'),
           title: Text(task.title),
           subtitle: Text(
             'Due: ${task.dueDate != null ? DateFormat.yMMMd().format(task.dueDate!) : 'No due date'}',
           ),
           trailing: Checkbox(
+            key: ValueKey('checkbox_${task.id}'),
             value: task.isCompleted,
             onChanged: (bool? value) {
               setState(() {

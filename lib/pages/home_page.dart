@@ -23,6 +23,13 @@ class _HomePageState extends State<HomePage> {
         const TaskPage(), // Task page for tasks
         const ProfilePage(), // Add ProfilePage to the list
       ];
+  // Updated the pages list to remove the Calendar page placeholder
+  static final List<Widget> _pages = <Widget>[
+    const TaskPage(key: ValueKey('taskPage')), // Task page for tasks
+    const Center(
+        child: Text('Profile Page Placeholder',
+            key: ValueKey('profilePage'))), // Placeholder for Profile
+  ];
 
   void _onItemTapped(int index) {
     setState(() {
@@ -43,12 +50,14 @@ class _HomePageState extends State<HomePage> {
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
-            icon: Icon(Icons.list),
+            icon: Icon(Icons.list, key: ValueKey('tasksNavItem')),
             label: 'Tasks',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person),
             label: 'Profile', // Changed label to "Profile"
+            icon: Icon(Icons.person, key: ValueKey('profileNavItem')),
+            label: 'Mine',
           ),
         ],
         currentIndex: _selectedIndex,
