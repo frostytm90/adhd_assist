@@ -7,6 +7,7 @@ import 'profile_page.dart';
 import '../providers/task_provider.dart';
 import '../models/task.dart';
 import 'add_task_dialog.dart';
+import 'achievements_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -21,6 +22,7 @@ class _HomePageState extends State<HomePage> {
   // Pages list
   final List<Widget> _pages = [
     const TaskPage(),
+    const AchievementsPage(),
     const ProfilePage(),
   ];
 
@@ -39,6 +41,10 @@ class _HomePageState extends State<HomePage> {
           BottomNavigationBarItem(
             icon: Icon(Icons.list),
             label: 'Tasks',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.emoji_events),
+            label: 'Achievements',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person),
@@ -63,6 +69,48 @@ class _HomePageState extends State<HomePage> {
               child: const Icon(Icons.add),
             )
           : null,
+      drawer: Drawer(
+        child: ListView(
+          children: [
+            const DrawerHeader(
+              decoration: BoxDecoration(
+                color: Colors.blue,
+              ),
+              child: Text(
+                'ADHD Assist',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                ),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.task),
+              title: const Text('Tasks'),
+              onTap: () {
+                Navigator.pop(context);
+                _onItemTapped(0);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.emoji_events),
+              title: const Text('Achievements'),
+              onTap: () {
+                Navigator.pop(context);
+                _onItemTapped(1);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.person),
+              title: const Text('Profile'),
+              onTap: () {
+                Navigator.pop(context);
+                _onItemTapped(2);
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -56,7 +56,9 @@ class _TaskList extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<TaskProvider>(
       builder: (context, taskProvider, child) {
-        final tasks = taskProvider.getTasksByCategory(category);
+        // Set the selected category and get tasks
+        taskProvider.setSelectedCategory(category);
+        final tasks = taskProvider.tasks;
 
         if (tasks.isEmpty) {
           return Center(
@@ -81,7 +83,7 @@ class _TaskList extends StatelessWidget {
               ),
               direction: DismissDirection.endToStart,
               onDismissed: (direction) {
-                taskProvider.deleteTask(task.id);
+                taskProvider.deleteTask(task);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text('${task.title} deleted'),
@@ -103,7 +105,7 @@ class _TaskList extends StatelessWidget {
                   leading: Checkbox(
                     value: task.isCompleted,
                     onChanged: (bool? value) {
-                      taskProvider.toggleTaskCompletion(task.id);
+                      taskProvider.toggleTaskCompletion(task);
                     },
                   ),
                   title: Text(
@@ -117,7 +119,8 @@ class _TaskList extends StatelessWidget {
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(task.description),
+                      if (task.description.isNotEmpty)
+                        Text(task.description),
                       if (task.dueDate != null)
                         Text(
                           'Due: ${DateFormat.yMMMd().format(task.dueDate!)}',
@@ -132,14 +135,12 @@ class _TaskList extends StatelessWidget {
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (task.isRecurring)
-                        const Icon(Icons.repeat, size: 20),
-                      const SizedBox(width: 8),
                       Icon(
-                        Icons.circle,
-                        size: 12,
+                        _getPriorityIcon(task.priority),
                         color: _getPriorityColor(task.priority),
                       ),
+                      if (task.isRecurring)
+                        const Icon(Icons.repeat, size: 20),
                     ],
                   ),
                 ),
@@ -149,6 +150,17 @@ class _TaskList extends StatelessWidget {
         );
       },
     );
+  }
+
+  IconData _getPriorityIcon(TaskPriority priority) {
+    switch (priority) {
+      case TaskPriority.high:
+        return Icons.priority_high;
+      case TaskPriority.medium:
+        return Icons.remove;
+      case TaskPriority.low:
+        return Icons.arrow_downward;
+    }
   }
 
   Color _getPriorityColor(TaskPriority priority) {

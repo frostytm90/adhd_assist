@@ -4,13 +4,20 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'pages/home_page.dart';
 import 'providers/task_provider.dart';
+import 'providers/gamification_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize TaskProvider
+  // Initialize Hive
+  await Hive.initFlutter();
+  
+  // Initialize providers
   final taskProvider = TaskProvider();
   await taskProvider.initHive();
+  
+  final gamificationProvider = GamificationProvider();
+  await gamificationProvider.initHive();
   
   // Get initial theme mode
   final prefs = await SharedPreferences.getInstance();
@@ -19,8 +26,9 @@ void main() async {
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider.value(value: taskProvider),
-        ChangeNotifierProvider(
+        ChangeNotifierProvider<TaskProvider>.value(value: taskProvider),
+        ChangeNotifierProvider<GamificationProvider>.value(value: gamificationProvider),
+        ChangeNotifierProvider<ThemeProvider>(
           create: (_) => ThemeProvider(isDarkMode: isDarkMode),
         ),
       ],
@@ -53,6 +61,7 @@ class MyApp extends StatelessWidget {
       builder: (context, themeProvider, child) {
         return MaterialApp(
           title: 'ADHD Assistant',
+          debugShowCheckedModeBanner: false,
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(
               seedColor: Colors.deepPurple,

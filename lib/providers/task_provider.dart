@@ -1,94 +1,113 @@
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/task.dart';
+import 'gamification_provider.dart';
 
 class TaskProvider with ChangeNotifier {
+  late Box<Task> _taskBox;
   List<Task> _tasks = [];
-  final String _boxName = 'tasks';
-  
-  List<Task> get tasks => _tasks;
-  
-  List<Task> getTasksByCategory(TaskCategory category) {
-    if (category == TaskCategory.all) {
-      return _tasks;
-    }
-    return _tasks.where((task) => task.category == category).toList();
+  TaskCategory _selectedCategory = TaskCategory.all;
+  GamificationProvider? _gamificationProvider;
+
+  // Getters
+  List<Task> get tasks => _selectedCategory == TaskCategory.all
+      ? _tasks
+      : _tasks.where((task) => task.category == _selectedCategory).toList();
+
+  TaskCategory get selectedCategory => _selectedCategory;
+
+  void setGamificationProvider(GamificationProvider provider) {
+    _gamificationProvider = provider;
   }
 
   Future<void> initHive() async {
-    await Hive.initFlutter();
-    Hive.registerAdapter(TaskAdapter());
-    Hive.registerAdapter(TaskCategoryAdapter());
-    Hive.registerAdapter(TaskPriorityAdapter());
-    Hive.registerAdapter(RecurrenceAdapter());
-    
-    await _loadTasks();
+    // Register the TaskAdapter
+    if (!Hive.isAdapterRegistered(0)) {
+      Hive.registerAdapter(TaskAdapter());
+    }
+    if (!Hive.isAdapterRegistered(1)) {
+      Hive.registerAdapter(TaskCategoryAdapter());
+    }
+    if (!Hive.isAdapterRegistered(2)) {
+      Hive.registerAdapter(TaskPriorityAdapter());
+    }
+
+    // Open the box
+    _taskBox = await Hive.openBox<Task>('tasks');
+    _loadTasks();
   }
 
-  Future<void> _loadTasks() async {
-    final box = await Hive.openBox<Task>(_boxName);
-    _tasks = box.values.toList();
+  void _loadTasks() {
+    _tasks = _taskBox.values.toList();
     notifyListeners();
   }
 
   Future<void> addTask(Task task) async {
-    final box = await Hive.openBox<Task>(_boxName);
-    await box.put(task.id, task);
-    _tasks.add(task);
-    notifyListeners();
+    await _taskBox.add(task);
+    _loadTasks();
   }
 
   Future<void> updateTask(Task task) async {
-    final box = await Hive.openBox<Task>(_boxName);
-    await box.put(task.id, task);
-    final index = _tasks.indexWhere((t) => t.id == task.id);
-    if (index != -1) {
-      _tasks[index] = task;
-      notifyListeners();
-    }
+    await task.save();
+    _loadTasks();
   }
 
-  Future<void> deleteTask(String taskId) async {
-    final box = await Hive.openBox<Task>(_boxName);
-    await box.delete(taskId);
-    _tasks.removeWhere((task) => task.id == taskId);
+  Future<void> deleteTask(Task task) async {
+    await task.delete();
+    _loadTasks();
+  }
+
+  Future<void> toggleTaskCompletion(Task task) async {
+    task.isCompleted = !task.isCompleted;
+    
+    if (task.isCompleted) {
+      // Notify gamification provider
+      _gamificationProvider?.onTaskCompleted(task);
+    }
+    
+    await task.save();
+    _loadTasks();
+  }
+
+  void setSelectedCategory(TaskCategory category) {
+    _selectedCategory = category;
     notifyListeners();
   }
 
-  Future<void> toggleTaskCompletion(String taskId) async {
-    final task = _tasks.firstWhere((task) => task.id == taskId);
-    task.isCompleted = !task.isCompleted;
-    
-    if (task.isRecurring && task.isCompleted) {
-      final nextTask = Task(
-        title: task.title,
-        description: task.description,
-        category: task.category,
-        priority: task.priority,
-        isRecurring: true,
-        recurrence: task.recurrence,
-        dueDate: _calculateNextDueDate(task),
-      );
-      await addTask(nextTask);
+  // Get tasks grouped by category
+  Map<TaskCategory, List<Task>> getTasksByCategory() {
+    final Map<TaskCategory, List<Task>> groupedTasks = {};
+    for (var category in TaskCategory.values) {
+      if (category != TaskCategory.all) {
+        groupedTasks[category] = _tasks
+            .where((task) => task.category == category && !task.isCompleted)
+            .toList();
+      }
     }
-    
-    await updateTask(task);
+    return groupedTasks;
   }
 
-  DateTime? _calculateNextDueDate(Task task) {
-    if (task.dueDate == null || task.recurrence == null) return null;
+  // Get tasks due today
+  List<Task> getTasksDueToday() {
+    final now = DateTime.now();
+    return _tasks
+        .where((task) =>
+            !task.isCompleted &&
+            task.dueDate != null &&
+            task.dueDate!.year == now.year &&
+            task.dueDate!.month == now.month &&
+            task.dueDate!.day == now.day)
+        .toList();
+  }
 
-    switch (task.recurrence!) {
-      case Recurrence.daily:
-        return task.dueDate!.add(const Duration(days: 1));
-      case Recurrence.weekly:
-        return task.dueDate!.add(const Duration(days: 7));
-      case Recurrence.monthly:
-        return DateTime(
-          task.dueDate!.year,
-          task.dueDate!.month + 1,
-          task.dueDate!.day,
-        );
-    }
+  // Get overdue tasks
+  List<Task> getOverdueTasks() {
+    final now = DateTime.now();
+    return _tasks
+        .where((task) =>
+            !task.isCompleted &&
+            task.dueDate != null &&
+            task.dueDate!.isBefore(now))
+        .toList();
   }
 }
