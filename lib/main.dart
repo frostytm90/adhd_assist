@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'pages/home_page.dart';
 import 'providers/task_provider.dart';
 import 'providers/gamification_provider.dart';
+import 'services/sound_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,6 +19,13 @@ void main() async {
   
   final gamificationProvider = GamificationProvider();
   await gamificationProvider.initHive();
+  
+  // Connect providers
+  taskProvider.setGamificationProvider(gamificationProvider);
+  
+  // Initialize sound service
+  final soundService = SoundService();
+  await soundService.initialize();
   
   // Get initial theme mode
   final prefs = await SharedPreferences.getInstance();

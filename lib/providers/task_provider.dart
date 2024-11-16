@@ -2,19 +2,16 @@ import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/task.dart';
 import 'gamification_provider.dart';
+import '../services/sound_service.dart';
 
 class TaskProvider with ChangeNotifier {
   late Box<Task> _taskBox;
   List<Task> _tasks = [];
-  TaskCategory _selectedCategory = TaskCategory.all;
   GamificationProvider? _gamificationProvider;
+  final _soundService = SoundService();
 
   // Getters
-  List<Task> get tasks => _selectedCategory == TaskCategory.all
-      ? _tasks
-      : _tasks.where((task) => task.category == _selectedCategory).toList();
-
-  TaskCategory get selectedCategory => _selectedCategory;
+  List<Task> get tasks => _tasks;
 
   void setGamificationProvider(GamificationProvider provider) {
     _gamificationProvider = provider;
@@ -23,13 +20,19 @@ class TaskProvider with ChangeNotifier {
   Future<void> initHive() async {
     // Register the TaskAdapter
     if (!Hive.isAdapterRegistered(0)) {
-      Hive.registerAdapter(TaskAdapter());
-    }
-    if (!Hive.isAdapterRegistered(1)) {
       Hive.registerAdapter(TaskCategoryAdapter());
     }
-    if (!Hive.isAdapterRegistered(2)) {
+    if (!Hive.isAdapterRegistered(1)) {
       Hive.registerAdapter(TaskPriorityAdapter());
+    }
+    if (!Hive.isAdapterRegistered(2)) {
+      Hive.registerAdapter(RecurrenceAdapter());
+    }
+    if (!Hive.isAdapterRegistered(3)) {
+      Hive.registerAdapter(TaskAdapter());
+    }
+    if (!Hive.isAdapterRegistered(4)) {
+      Hive.registerAdapter(TaskDifficultyAdapter());
     }
 
     // Open the box
@@ -57,57 +60,50 @@ class TaskProvider with ChangeNotifier {
     _loadTasks();
   }
 
-  Future<void> toggleTaskCompletion(Task task) async {
-    task.isCompleted = !task.isCompleted;
+  Future<void> completeTask(Task task) async {
+    task.isCompleted = true;
+    task.completedAt = DateTime.now();
+    await updateTask(task);
+    await _soundService.playTaskComplete();
+    _gamificationProvider?.onTaskCompleted(task);
+  }
+
+  Future<void> completeRecurringTask(Task task) async {
+    // Mark current task as completed
+    task.isCompleted = true;
+    task.completedAt = DateTime.now();
+    await updateTask(task);
     
-    if (task.isCompleted) {
-      // Notify gamification provider
-      _gamificationProvider?.onTaskCompleted(task);
-    }
+    // Create next occurrence
+    final nextTask = Task(
+      title: task.title,
+      description: task.description,
+      category: task.category,
+      priority: task.priority,
+      difficulty: task.difficulty,
+      dueDate: _calculateNextDueDate(task.dueDate, task.recurrence),
+      recurrence: task.recurrence,
+    );
     
-    await task.save();
-    _loadTasks();
+    await addTask(nextTask);
+    await _soundService.playTaskComplete();
+    _gamificationProvider?.onTaskCompleted(task);
   }
 
-  void setSelectedCategory(TaskCategory category) {
-    _selectedCategory = category;
-    notifyListeners();
-  }
+  DateTime? _calculateNextDueDate(DateTime? currentDueDate, Recurrence? recurrence) {
+    if (currentDueDate == null || recurrence == null) return null;
 
-  // Get tasks grouped by category
-  Map<TaskCategory, List<Task>> getTasksByCategory() {
-    final Map<TaskCategory, List<Task>> groupedTasks = {};
-    for (var category in TaskCategory.values) {
-      if (category != TaskCategory.all) {
-        groupedTasks[category] = _tasks
-            .where((task) => task.category == category && !task.isCompleted)
-            .toList();
-      }
+    switch (recurrence) {
+      case Recurrence.daily:
+        return currentDueDate.add(const Duration(days: 1));
+      case Recurrence.weekly:
+        return currentDueDate.add(const Duration(days: 7));
+      case Recurrence.monthly:
+        return DateTime(
+          currentDueDate.year,
+          currentDueDate.month + 1,
+          currentDueDate.day,
+        );
     }
-    return groupedTasks;
-  }
-
-  // Get tasks due today
-  List<Task> getTasksDueToday() {
-    final now = DateTime.now();
-    return _tasks
-        .where((task) =>
-            !task.isCompleted &&
-            task.dueDate != null &&
-            task.dueDate!.year == now.year &&
-            task.dueDate!.month == now.month &&
-            task.dueDate!.day == now.day)
-        .toList();
-  }
-
-  // Get overdue tasks
-  List<Task> getOverdueTasks() {
-    final now = DateTime.now();
-    return _tasks
-        .where((task) =>
-            !task.isCompleted &&
-            task.dueDate != null &&
-            task.dueDate!.isBefore(now))
-        .toList();
   }
 }

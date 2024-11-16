@@ -56,99 +56,182 @@ class _TaskList extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<TaskProvider>(
       builder: (context, taskProvider, child) {
-        // Set the selected category and get tasks
-        taskProvider.setSelectedCategory(category);
-        final tasks = taskProvider.tasks;
+        final allTasks = category == TaskCategory.all
+            ? taskProvider.tasks
+            : taskProvider.tasks.where((task) => task.category == category).toList();
 
-        if (tasks.isEmpty) {
-          return Center(
-            child: Text(
-              'No tasks in ${category.toString().split('.').last}',
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
+        final activeTasks = allTasks.where((task) => !task.isCompleted).toList();
+        final completedTasks = allTasks.where((task) => task.isCompleted).toList();
+
+        if (allTasks.isEmpty) {
+          return const Center(
+            child: Text('No tasks yet'),
           );
         }
 
-        return ListView.builder(
-          itemCount: tasks.length,
-          itemBuilder: (context, index) {
-            final task = tasks[index];
-            return Dismissible(
-              key: Key(task.id),
-              background: Container(
-                color: Colors.red,
-                alignment: Alignment.centerRight,
-                padding: const EdgeInsets.only(right: 16.0),
-                child: const Icon(Icons.delete, color: Colors.white),
-              ),
-              direction: DismissDirection.endToStart,
-              onDismissed: (direction) {
-                taskProvider.deleteTask(task);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('${task.title} deleted'),
-                    action: SnackBarAction(
-                      label: 'Undo',
-                      onPressed: () {
-                        taskProvider.addTask(task);
-                      },
-                    ),
-                  ),
-                );
-              },
-              child: Card(
-                margin: const EdgeInsets.symmetric(
-                  horizontal: 16.0,
-                  vertical: 8.0,
+        return ListView(
+          children: [
+            // Active tasks
+            ...activeTasks.map((task) => _buildTaskCard(context, task, taskProvider)),
+            
+            // Completed tasks section (if any)
+            if (completedTasks.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Theme(
+                data: Theme.of(context).copyWith(
+                  dividerColor: Colors.transparent,
                 ),
-                child: ListTile(
-                  leading: Checkbox(
-                    value: task.isCompleted,
-                    onChanged: (bool? value) {
-                      taskProvider.toggleTaskCompletion(task);
-                    },
-                  ),
+                child: ExpansionTile(
                   title: Text(
-                    task.title,
+                    'Completed (${completedTasks.length})',
                     style: TextStyle(
-                      decoration: task.isCompleted
-                          ? TextDecoration.lineThrough
-                          : null,
+                      color: Theme.of(context).textTheme.bodySmall?.color,
                     ),
                   ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (task.description.isNotEmpty)
-                        Text(task.description),
-                      if (task.dueDate != null)
-                        Text(
-                          'Due: ${DateFormat.yMMMd().format(task.dueDate!)}',
-                          style: TextStyle(
-                            color: task.dueDate!.isBefore(DateTime.now())
-                                ? Colors.red
-                                : null,
-                          ),
-                        ),
-                    ],
+                  initiallyExpanded: false,
+                  children: completedTasks
+                      .map((task) => _buildCompactTaskCard(context, task, taskProvider))
+                      .toList(),
+                ),
+              ),
+            ],
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildTaskCard(BuildContext context, Task task, TaskProvider taskProvider) {
+    return Dismissible(
+      key: Key(task.id),
+      background: Container(
+        color: Colors.red,
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 16.0),
+        child: const Icon(
+          Icons.delete,
+          color: Colors.white,
+        ),
+      ),
+      direction: DismissDirection.endToStart,
+      onDismissed: (direction) {
+        taskProvider.deleteTask(task);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Task deleted'),
+            action: SnackBarAction(
+              label: 'Undo',
+              onPressed: () {
+                taskProvider.addTask(task);
+              },
+            ),
+          ),
+        );
+      },
+      child: Card(
+        margin: const EdgeInsets.symmetric(
+          horizontal: 8.0,
+          vertical: 4.0,
+        ),
+        child: ListTile(
+          leading: Checkbox(
+            value: task.isCompleted,
+            onChanged: (bool? value) {
+              if (value != null) {
+                if (task.isRecurring) {
+                  taskProvider.completeRecurringTask(task);
+                } else {
+                  taskProvider.completeTask(task);
+                }
+              }
+            },
+          ),
+          title: Text(
+            task.title,
+            style: TextStyle(
+              decoration: task.isCompleted ? TextDecoration.lineThrough : null,
+            ),
+          ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (task.description.isNotEmpty) Text(task.description),
+              if (task.dueDate != null)
+                Text(
+                  'Due: ${DateFormat.yMMMd().format(task.dueDate!)}',
+                  style: TextStyle(
+                    color: task.dueDate!.isBefore(DateTime.now()) ? Colors.red : null,
                   ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        _getPriorityIcon(task.priority),
-                        color: _getPriorityColor(task.priority),
-                      ),
-                      if (task.isRecurring)
-                        const Icon(Icons.repeat, size: 20),
-                    ],
+                ),
+              if (task.isRecurring)
+                Text(
+                  'Repeats: ${task.recurrence.toString().split('.').last}',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.secondary,
                   ),
+                ),
+            ],
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                _getPriorityIcon(task.priority),
+                color: _getPriorityColor(task.priority),
+              ),
+              if (task.difficulty == TaskDifficulty.hard)
+                const Icon(
+                  Icons.whatshot,
+                  color: Colors.orange,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompactTaskCard(BuildContext context, Task task, TaskProvider taskProvider) {
+    return Card(
+      margin: const EdgeInsets.symmetric(
+        horizontal: 16.0,
+        vertical: 2.0,
+      ),
+      child: ListTile(
+        dense: true,
+        visualDensity: VisualDensity.compact,
+        leading: IconButton(
+          icon: const Icon(Icons.restore, size: 20),
+          onPressed: () {
+            taskProvider.updateTask(task..isCompleted = false);
+          },
+        ),
+        title: Text(
+          task.title,
+          style: TextStyle(
+            decoration: TextDecoration.lineThrough,
+            color: Theme.of(context).textTheme.bodySmall?.color,
+            fontSize: 14,
+          ),
+        ),
+        trailing: IconButton(
+          icon: const Icon(Icons.delete_outline, size: 20),
+          onPressed: () {
+            taskProvider.deleteTask(task);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('Task deleted'),
+                action: SnackBarAction(
+                  label: 'Undo',
+                  onPressed: () {
+                    taskProvider.addTask(task);
+                  },
                 ),
               ),
             );
           },
-        );
-      },
+        ),
+      ),
     );
   }
 

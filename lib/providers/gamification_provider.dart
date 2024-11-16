@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'dart:math' as math;
 import '../models/task.dart';
 import '../services/sound_service.dart';
 import '../services/streak_service.dart';
@@ -11,6 +12,7 @@ class Achievement {
   final String icon;
   final int requiredCount;
   bool isUnlocked;
+  int progress;
 
   Achievement({
     required this.id,
@@ -19,6 +21,7 @@ class Achievement {
     required this.icon,
     required this.requiredCount,
     this.isUnlocked = false,
+    this.progress = 0,
   });
 
   Map<String, dynamic> toJson() => {
@@ -28,6 +31,7 @@ class Achievement {
         'icon': icon,
         'requiredCount': requiredCount,
         'isUnlocked': isUnlocked,
+        'progress': progress,
       };
 
   factory Achievement.fromJson(Map<String, dynamic> json) => Achievement(
@@ -37,6 +41,7 @@ class Achievement {
         icon: json['icon'],
         requiredCount: json['requiredCount'],
         isUnlocked: json['isUnlocked'] ?? false,
+        progress: json['progress'] ?? 0,
       );
 }
 
@@ -55,6 +60,7 @@ class GamificationProvider with ChangeNotifier {
   List<Achievement> get achievements => _achievements;
   int get points => _points;
   int get level => _level;
+  int get streak => _streakService.stats.currentStreak;
   StreakStats get streakStats => _streakService.stats;
   bool get isStreakAtRisk => _streakService.isStreakAtRisk;
 
@@ -126,51 +132,65 @@ class GamificationProvider with ChangeNotifier {
           requiredCount: 1,
         ),
         Achievement(
-          id: 'productive_day',
-          title: 'Productive Day',
-          description: 'Complete 5 tasks in one day',
-          icon: '⭐',
+          id: 'focus_master',
+          title: 'Focus Master',
+          description: 'Complete 3 tasks without switching between them',
+          icon: '🧠',
+          requiredCount: 3,
+        ),
+        Achievement(
+          id: 'time_manager',
+          title: 'Time Manager',
+          description: 'Complete tasks before their due dates 5 times',
+          icon: '⏰',
           requiredCount: 5,
         ),
         Achievement(
-          id: 'streak_master',
-          title: 'Streak Master',
-          description: 'Maintain a 7-day streak',
-          icon: '🔥',
-          requiredCount: 7,
-        ),
-        Achievement(
-          id: 'task_warrior',
-          title: 'Task Warrior',
-          description: 'Complete 50 tasks total',
-          icon: '⚔️',
-          requiredCount: 50,
-        ),
-        Achievement(
-          id: 'early_bird',
-          title: 'Early Bird',
-          description: 'Complete a task before 9 AM',
+          id: 'routine_builder',
+          title: 'Routine Builder',
+          description: 'Complete morning routine tasks for 5 days',
           icon: '🌅',
-          requiredCount: 1,
+          requiredCount: 5,
         ),
         Achievement(
-          id: 'priority_master',
-          title: 'Priority Master',
+          id: 'priority_ninja',
+          title: 'Priority Ninja',
           description: 'Complete 10 high-priority tasks',
           icon: '⚡',
           requiredCount: 10,
         ),
         Achievement(
-          id: 'consistency_king',
-          title: 'Consistency King',
+          id: 'streak_champion',
+          title: 'Streak Champion',
+          description: 'Maintain a 7-day task completion streak',
+          icon: '🔥',
+          requiredCount: 7,
+        ),
+        Achievement(
+          id: 'mindful_master',
+          title: 'Mindful Master',
+          description: 'Take breaks between tasks 10 times',
+          icon: '🧘',
+          requiredCount: 10,
+        ),
+        Achievement(
+          id: 'organization_guru',
+          title: 'Organization Guru',
+          description: 'Categorize and complete 15 tasks',
+          icon: '📋',
+          requiredCount: 15,
+        ),
+        Achievement(
+          id: 'momentum_keeper',
+          title: 'Momentum Keeper',
           description: 'Complete tasks on 5 consecutive days',
-          icon: '👑',
+          icon: '🚀',
           requiredCount: 5,
         ),
         Achievement(
-          id: 'weekend_warrior',
-          title: 'Weekend Warrior',
-          description: 'Complete 3 tasks on a weekend',
+          id: 'dopamine_hunter',
+          title: 'Dopamine Hunter',
+          description: 'Complete 3 challenging tasks in one day',
           icon: '🎮',
           requiredCount: 3,
         ),
@@ -241,13 +261,7 @@ class GamificationProvider with ChangeNotifier {
     }
 
     // Check achievements
-    final unlockedBefore = _achievements.where((a) => a.isUnlocked).length;
     await _checkAchievements(task);
-    final unlockedAfter = _achievements.where((a) => a.isUnlocked).length;
-    
-    if (unlockedAfter > unlockedBefore) {
-      await _soundService.playAchievementUnlocked();
-    }
 
     // Check streak milestones
     if (_streakService.stats.currentStreak == 3 || 
@@ -261,75 +275,97 @@ class GamificationProvider with ChangeNotifier {
   }
 
   Future<void> _checkAchievements(Task task) async {
-    final stats = _streakService.stats;
-    
-    // First Task
-    _unlockAchievement('first_task');
+    // First task achievement
+    _updateAchievementProgress('first_task', 1);
 
-    // Productive Day
-    if (_tasksCompletedToday >= 5) {
-      _unlockAchievement('productive_day');
-    }
-
-    // Streak Master
-    if (stats.currentStreak >= 7) {
-      _unlockAchievement('streak_master');
-    }
-
-    // Task Warrior (total tasks completed)
-    if (_gameBox.get('totalTasksCompleted', defaultValue: 0) >= 50) {
-      _unlockAchievement('task_warrior');
-    }
-
-    // Early Bird
-    if (DateTime.now().hour < 9) {
-      _unlockAchievement('early_bird');
-    }
-
-    // Priority Master
+    // Priority ninja achievement
     if (task.priority == TaskPriority.high) {
-      final highPriorityCount = _gameBox.get('highPriorityCount', defaultValue: 0) + 1;
-      _gameBox.put('highPriorityCount', highPriorityCount);
-      if (highPriorityCount >= 10) {
-        _unlockAchievement('priority_master');
+      _updateAchievementProgress('priority_ninja', 1);
+    }
+
+    // Time manager achievement
+    if (task.dueDate != null && DateTime.now().isBefore(task.dueDate!)) {
+      _updateAchievementProgress('time_manager', 1);
+    }
+
+    // Streak champion achievement
+    _updateAchievementProgress('streak_champion', _streakService.stats.currentStreak);
+
+    // Momentum keeper achievement
+    if (_streakService.stats.currentStreak >= 1) {
+      _updateAchievementProgress('momentum_keeper', _streakService.stats.currentStreak);
+    }
+
+    // Organization guru achievement
+    if (task.category != TaskCategory.all) {
+      _updateAchievementProgress('organization_guru', 1);
+    }
+
+    // Focus master achievement (track in task completion sequence)
+    if (_lastTaskDate != null && 
+        DateTime.now().difference(_lastTaskDate!).inMinutes < 30) {
+      _updateAchievementProgress('focus_master', 1);
+    } else {
+      _resetAchievementProgress('focus_master');
+    }
+
+    // Routine builder achievement
+    final now = DateTime.now();
+    if (now.hour < 10) { // Before 10 AM
+      _updateAchievementProgress('routine_builder', 1);
+    }
+
+    // Dopamine hunter achievement
+    if (task.difficulty == TaskDifficulty.hard) {
+      _updateAchievementProgress('dopamine_hunter', 1);
+    }
+
+    _lastTaskDate = DateTime.now();
+    _saveData();
+  }
+
+  void _updateAchievementProgress(String id, int increment) {
+    final achievement = _achievements.firstWhere((a) => a.id == id);
+    if (!achievement.isUnlocked) {
+      if (increment == achievement.requiredCount) {
+        achievement.progress = achievement.requiredCount;
+        _unlockAchievement(id);
+      } else {
+        achievement.progress = math.min(
+          achievement.progress + increment,
+          achievement.requiredCount
+        );
+        if (achievement.progress >= achievement.requiredCount) {
+          _unlockAchievement(id);
+        }
       }
-    }
-
-    // Consistency King
-    if (stats.currentStreak >= 5) {
-      _unlockAchievement('consistency_king');
-    }
-
-    // Weekend Warrior
-    if (DateTime.now().weekday >= 6 && _tasksCompletedToday >= 3) {
-      _unlockAchievement('weekend_warrior');
+      _saveData();
     }
   }
 
-  void _unlockAchievement(String id) {
-    final achievement = _achievements.firstWhere(
-      (a) => a.id == id && !a.isUnlocked,
-      orElse: () => Achievement(
-        id: '',
-        title: '',
-        description: '',
-        icon: '',
-        requiredCount: 0,
-        isUnlocked: true,
-      ),
-    );
+  void _resetAchievementProgress(String id) {
+    final achievement = _achievements.firstWhere((a) => a.id == id);
+    if (!achievement.isUnlocked) {
+      achievement.progress = 0;
+      _saveData();
+    }
+  }
+
+  Future<void> _unlockAchievement(String id) async {
+    final achievement = _achievements.firstWhere((a) => a.id == id);
     
     if (!achievement.isUnlocked) {
       achievement.isUnlocked = true;
+      await _soundService.playAchievementUnlocked();
       _saveData();
     }
   }
 
   double getLevelProgress() {
-    final pointsForCurrentLevel = getPointsForNextLevel();
-    final previousLevelPoints = (100 * ((_level - 1) * 1.5)).round();
-    final currentPoints = _points - previousLevelPoints;
-    final requiredPoints = pointsForCurrentLevel - previousLevelPoints;
-    return currentPoints / requiredPoints;
+    final nextLevelPoints = getPointsForNextLevel();
+    final currentLevelPoints = 100 * ((_level - 1) * 1.5).round();
+    final pointsInCurrentLevel = _points - currentLevelPoints;
+    final pointsNeededForNextLevel = nextLevelPoints - currentLevelPoints;
+    return pointsInCurrentLevel / pointsNeededForNextLevel;
   }
 }

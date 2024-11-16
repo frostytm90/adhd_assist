@@ -21,19 +21,20 @@ class TaskAdapter extends TypeAdapter<Task> {
       title: fields[1] as String,
       description: fields[2] as String,
       category: fields[3] as TaskCategory,
-      priority: fields[4] as TaskPriority,
+      isCompleted: fields[4] as bool,
       dueDate: fields[5] as DateTime?,
-      isCompleted: fields[6] as bool,
-      notes: fields[7] as String?,
-      isRecurring: fields[8] as bool,
+      priority: fields[6] as TaskPriority,
+      createdAt: fields[7] as DateTime?,
+      completedAt: fields[8] as DateTime?,
       recurrence: fields[9] as Recurrence?,
+      difficulty: fields[10] as TaskDifficulty,
     );
   }
 
   @override
   void write(BinaryWriter writer, Task obj) {
     writer
-      ..writeByte(10)
+      ..writeByte(11)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -43,17 +44,19 @@ class TaskAdapter extends TypeAdapter<Task> {
       ..writeByte(3)
       ..write(obj.category)
       ..writeByte(4)
-      ..write(obj.priority)
+      ..write(obj.isCompleted)
       ..writeByte(5)
       ..write(obj.dueDate)
       ..writeByte(6)
-      ..write(obj.isCompleted)
+      ..write(obj.priority)
       ..writeByte(7)
-      ..write(obj.notes)
+      ..write(obj.createdAt)
       ..writeByte(8)
-      ..write(obj.isRecurring)
+      ..write(obj.completedAt)
       ..writeByte(9)
-      ..write(obj.recurrence);
+      ..write(obj.recurrence)
+      ..writeByte(10)
+      ..write(obj.difficulty);
   }
 
   @override
@@ -200,6 +203,50 @@ class RecurrenceAdapter extends TypeAdapter<Recurrence> {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is RecurrenceAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+class TaskDifficultyAdapter extends TypeAdapter<TaskDifficulty> {
+  @override
+  final int typeId = 4;
+
+  @override
+  TaskDifficulty read(BinaryReader reader) {
+    switch (reader.readByte()) {
+      case 0:
+        return TaskDifficulty.easy;
+      case 1:
+        return TaskDifficulty.medium;
+      case 2:
+        return TaskDifficulty.hard;
+      default:
+        return TaskDifficulty.easy;
+    }
+  }
+
+  @override
+  void write(BinaryWriter writer, TaskDifficulty obj) {
+    switch (obj) {
+      case TaskDifficulty.easy:
+        writer.writeByte(0);
+        break;
+      case TaskDifficulty.medium:
+        writer.writeByte(1);
+        break;
+      case TaskDifficulty.hard:
+        writer.writeByte(2);
+        break;
+    }
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TaskDifficultyAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

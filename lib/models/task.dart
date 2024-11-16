@@ -36,6 +36,16 @@ enum Recurrence {
   monthly
 }
 
+@HiveType(typeId: 4)
+enum TaskDifficulty {
+  @HiveField(0)
+  easy,
+  @HiveField(1)
+  medium,
+  @HiveField(2)
+  hard
+}
+
 @HiveType(typeId: 3)
 class Task extends HiveObject {
   @HiveField(0)
@@ -51,35 +61,42 @@ class Task extends HiveObject {
   TaskCategory category;
   
   @HiveField(4)
-  TaskPriority priority;
+  bool isCompleted;
   
   @HiveField(5)
   DateTime? dueDate;
   
   @HiveField(6)
-  bool isCompleted;
+  TaskPriority priority;
   
   @HiveField(7)
-  String? notes;
+  DateTime createdAt;
   
   @HiveField(8)
-  bool isRecurring;
+  DateTime? completedAt;
   
   @HiveField(9)
   Recurrence? recurrence;
 
+  @HiveField(10)
+  TaskDifficulty difficulty;
+
+  bool get isRecurring => recurrence != null;
+
   Task({
     String? id,
     required this.title,
-    required this.description,
-    this.category = TaskCategory.all,
-    this.priority = TaskPriority.medium,
-    this.dueDate,
+    this.description = '',
+    required this.category,
     this.isCompleted = false,
-    this.notes,
-    this.isRecurring = false,
+    this.dueDate,
+    this.priority = TaskPriority.medium,
+    DateTime? createdAt,
+    this.completedAt,
     this.recurrence,
-  }) : id = id ?? const Uuid().v4();
+    this.difficulty = TaskDifficulty.medium,
+  }) : id = id ?? const Uuid().v4(),
+       createdAt = createdAt ?? DateTime.now();
 
   // Convert Task to JSON
   Map<String, dynamic> toJson() {
@@ -91,9 +108,10 @@ class Task extends HiveObject {
       'priority': priority.index,
       'dueDate': dueDate?.toIso8601String(),
       'isCompleted': isCompleted,
-      'notes': notes,
-      'isRecurring': isRecurring,
       'recurrence': recurrence?.index,
+      'difficulty': difficulty.index,
+      'createdAt': createdAt.toIso8601String(),
+      'completedAt': completedAt?.toIso8601String(),
     };
   }
 
@@ -107,9 +125,10 @@ class Task extends HiveObject {
       priority: TaskPriority.values[json['priority']],
       dueDate: json['dueDate'] != null ? DateTime.parse(json['dueDate']) : null,
       isCompleted: json['isCompleted'],
-      notes: json['notes'],
-      isRecurring: json['isRecurring'],
       recurrence: json['recurrence'] != null ? Recurrence.values[json['recurrence']] : null,
+      difficulty: TaskDifficulty.values[json['difficulty'] ?? TaskDifficulty.medium.index],
+      createdAt: DateTime.parse(json['createdAt']),
+      completedAt: json['completedAt'] != null ? DateTime.parse(json['completedAt']) : null,
     );
   }
 
@@ -134,7 +153,6 @@ class Task extends HiveObject {
         description: 'Read 30 pages of a new book',
         category: TaskCategory.wishlist,
         priority: TaskPriority.low,
-        isRecurring: true,
         recurrence: Recurrence.daily,
       ),
     ];
